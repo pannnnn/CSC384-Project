@@ -1,5 +1,5 @@
 class: "GraphGameTreeTest"
-alg: "AlphaBetaAgent"
+alg: "ExpectimaxAgent"
 depth: "4"
 
 diagram: """
@@ -16,8 +16,8 @@ A B  C D  E F  G H   I J  K L  M N  O P
 3 13 5 9 10 11 6 8   1 0  4 7 12 15 2 14
 
 a - max
-b - min
-c - min
+b - exp
+c - exp
 d - max
 """
 num_agents: "3"

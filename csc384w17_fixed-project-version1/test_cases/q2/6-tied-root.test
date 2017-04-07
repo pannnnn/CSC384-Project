@@ -1,14 +1,14 @@
 class: "GraphGameTreeTest"
-alg: "MinimaxAgent"
+alg: "AlphaBetaAgent"
 depth: "3"
 
 diagram: """
     max
    /   \
 min1    min2
- |      /  \
- A      B   C
-10     10   0
+ |       |
+ A       B
+10      10
 """
 num_agents: "2"
 
@@ -20,12 +20,10 @@ successors: """
 max Left min1
 max Right min2
 min1 Down A
-min2 Left B
-min2 Right C
+min2 Down B
 """
 
 evaluation: """
 A 10.0
 B 10.0
-C 0.0
 """
