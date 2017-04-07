@@ -62,7 +62,33 @@ class MinimaxAgent(MultiAgentSearchAgent):
             Returns the total number of agents in the game
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        curDepthVal = []
+        legalActions = gameState.getLegalActions(self.index)
+        for i in range(gameState.getNumAgents()):
+            curDepthVal.append (self.DFMiniMax(gameState, self.depth, self.index+i+1))
+        return legalActions[curDepthVal.index(max(curDepthVal))]
+
+    def DFMiniMax(self, gameState, depth, agentIndex):
+        if(depth == 0):
+            scoreEvaluationFunction(gameState)
+        else:
+            legalActions = gameState.getLegalActions(agentIndex)
+            if(len(legalActions) == 0):
+                return scoreEvaluationFunction(gameState)
+            curDepthVal = []
+            if(agentIndex == self.index):
+                for action in legalActions:
+                    SuccessorState = gameState.generateSuccessor(agentIndex, action)
+                    SuccessorStateVal = sum([self.DFMiniMax(SuccessorState, depth, agentIndex+i+1) for i in range(gameState.getNumAgents())])
+                    curDepthVal.append (SuccessorStateVal)
+                return max(curDepthVal)
+            else:
+                for action in legalActions:
+                    SuccessorState = gameState.generateSuccessor(agentIndex, action)
+                    SuccessorStateVal = self.DFMiniMax(SuccessorState, depth - 1, self.index)
+                    curDepthVal.append (SuccessorStateVal)
+                return min(curDepthVal)
+
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
     """
@@ -74,13 +100,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
           Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        legalMoves = gameState.getLegalActions(0)
-        optimal_val = float("-inf")
-
-        successor = gameState.generateSuccessor(0)
-
-def DFMiniMax
-
+        util.raiseNotDefined()
 
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
