@@ -245,7 +245,7 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 			-> Value are integers. When performing division (i.e. wins/plays) don't forget to convert to float.
 	  """
 
-	def __init__(self, evalFn='mctsEvalFunction', depth='-1', timeout='40', numTraining=100, C='2', Q=None):
+	def __init__(self, evalFn='mctsEvalFunction', depth='-1', timeout='50', numTraining=100, C='2', Q=None):
 		# This is where you set C, the depth, and the evaluation function for the section "Enhancements for MCTS agent".
 		if Q:
 			if Q == 'minimaxClassic':
@@ -271,7 +271,6 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 		self.numTraining = numTraining
 
 		"*** YOUR CODE HERE ***"
-		self.pair = dict()
 
 		MultiAgentSearchAgent.__init__(self, evalFn, depth)
 
@@ -310,7 +309,6 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 		Updates values of appropriate states in search with with evaluation function.
 		"""
 		"*** YOUR CODE HERE ***"
-		self.build_the_tree(state)
 		legalActions = state.getLegalActions(self.index)
 		if(len(self.plays) == 0):
 			self.plays[state] = 0
@@ -319,44 +317,46 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 			for s in states:
 				self.plays[s] = 0
 				self.wins[s] = 0
-			self.pair[state] = states
 		else:
+			node_expanded_amt = len(self.plays)
+			# initial state traversal is automatically added
 			nodes_traversed = [state]
 			cur_state = state
+			cur_states = []
+			# states = [state]
 			agentIndex = self.index
 			while(1):
-				if(cur_state not in self.pair):
-					if(self.plays[cur_state] == 0):
-						# roll out
-						score = self.simulation(cur_state, self.depth, agentIndex)
-						for s in nodes_traversed:
-							self.plays[s] += 1
-							self.wins[s] += score
-					else:
-						self.pair[cur_state] = [cur_state.generateSuccessor(agentIndex, a) for a in cur_state.getLegalActions(agentIndex)]
-						# expand the node
-						for s in self.pair[cur_state]:
-							self.plays[s] = 0
-							self.wins[s] = 0
-						cur_state = self.pair[cur_state][0]
-						nodes_traversed.append(cur_state)
-						# roll out
-						agentIndex += 1
-						if(agentIndex == state.getNumAgents()):
-							agentIndex = self.index
-						score = self.simulation(cur_state, self.depth, agentIndex)
-						for s in nodes_traversed:
-							self.plays[s] += 1
-							self.wins[s] += score
+				if(self.plays[cur_state] == 0 and state != cur_state):
+					# roll out
+					score = self.simulation(cur_state, self.depth, agentIndex)
+					for s in nodes_traversed:
+						self.plays[s] += 1
+						self.wins[s] += score
 					break
-				ucb1Dict = {}
-				for s in self.pair[cur_state]:
-					ucb1Dict[s] = self.UCB1(cur_state, s)
-				cur_state = max(ucb1Dict.iterkeys(), key=(lambda key: ucb1Dict[key]))
-				nodes_traversed.append(cur_state)
-				agentIndex += 1
-				if(agentIndex == state.getNumAgents()):
-					agentIndex = self.index
+				# states = [s.generateSuccessor(agentIndex, a) for s in states for a in s.getLegalActions(agentIndex)]
+				cur_states = [cur_state.generateSuccessor(agentIndex, a) for a in cur_state.getLegalActions(agentIndex)]
+				if(cur_states[0] not in self.plays):
+					# expansion
+					for s in cur_states:
+						self.plays[s] = 0
+						self.wins[s] = 0
+					cur_state = cur_states[0]
+					nodes_traversed.append(cur_state)
+					# roll out
+					score = self.simulation(cur_state, self.depth, agentIndex)
+					for s in nodes_traversed:
+						self.plays[s] += 1
+						self.wins[s] += score
+					break
+				else:
+					ucb1Dict = {}
+					for s in cur_states:
+						ucb1Dict[s] = self.UCB1(cur_state, s)
+					cur_state = max(ucb1Dict.iterkeys(), key=(lambda key: ucb1Dict[key]))
+					nodes_traversed.append(cur_state)
+					agentIndex += 1
+					if(agentIndex == state.getNumAgents()):
+						agentIndex = self.index
 
 	def final(self, state):
 		"""
@@ -366,14 +366,9 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 		"*** YOUR CODE HERE ***"
 		util.raiseNotDefined()
 
-	def build_the_tree(self, state):
-		legalActions = state.getLegalActions(self.index)
-		self.pair[state] = []
-		if(state)
-
 	def UCB1(self, parentState, state):
 		try:
-			v = float(self.wins[state])/(self.plays[state])
+			v = float(self.wins[state])/float(self.plays[state])
 			ucb1Val = v + (math.log(float(self.plays[parentState])/float(self.plays[state])))**(.5)
 		except ZeroDivisionError:
 			ucb1Val = float("inf")
