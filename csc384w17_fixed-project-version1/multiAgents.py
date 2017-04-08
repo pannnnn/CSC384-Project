@@ -16,6 +16,7 @@ from util import manhattanDistance
 from game import Directions
 import random, util
 import datetime
+import math
 
 from game import Agent
 
@@ -303,21 +304,39 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 		Updates values of appropriate states in search with with evaluation function.
 		"""
 		"*** YOUR CODE HERE ***"
+		legalActions = state.getLegalActions(self.index)
 		if(len(self.plays) == 0):
 			self.plays[state] = 0
 			self.wins[state] = 0
+	        states = [state]
+	        for i in range(state.getNumAgents()):
+	            states = [s.generateSuccessor(i, a) for s in states for a in s.getLegalActions(i)]
+	            for s in states:
+	                self.plays[s] = 0
+	                self.wins[s] = 0
 		else:
-			legalActions = state.getLegalActions(self.index)
-			for action in legalActions:
-				SuccessorState = state.generateSuccessor(self.index, action)
-				self.plays[SuccessorState] = 0
-				self.wins[SuccessorState] = 0
-		# else:
-		# 	ucb1List = []
-		# 	for s in self.plays.keys():
-		# 		ucb1List.append(UCB1)
-
-			
+			node_expanded_amt = len(self.plays)
+			# initial state traversal is automatically added
+			nodes_traversed_amt = 1
+			nodes_traversed = [state]
+			cur_state = state
+			states = []
+			while(nodes_traversed_amt < node_expanded_amt):
+				nodes_in_cur_depth = 0
+				ucb1Dict = {}
+				for i in range(state.getNumAgents()):
+					states = [cur_state.generateSuccessor(i, a) for a in cur_state.getLegalActions(i)]
+					for s in states:
+						ucb1Dict[s] = self.UCB1(cur_state, s)
+					cur_state = max(ucb1Dict.iterkeys(), key=(lambda key: ucb1Dict[key]))
+					nodes_traversed.append(cur_state)
+					nodes_in_cur_depth += len(states)
+					ucb1Dict = {}
+				nodes_traversed_amt += nodes_in_cur_depth
+			score = self.simulation(cur_state, self.depth, self.index)
+			for s in nodes_traversed:
+				self.plays[s] += 1
+				self.wins[s] += score
 				
 
 	def final(self, state):
@@ -329,9 +348,28 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 		util.raiseNotDefined()
 
 	def UCB1(self, parentState, state):
-		v = float(self.wins[state])/(self.plays[state])
-		ucb1Val = v + (math.log(float(self.plays[parentState])/float(self.plays[state])))**(.5)
+		try:
+			v = float(self.wins[state])/(self.plays[state])
+			ucb1Val = v + (math.log(float(self.plays[parentState])/float(self.plays[state])))**(.5)
+		except ZeroDivisionError:
+			ucb1Val = float("inf")
 		return ucb1Val
+
+	def simulation(self, state, depth, agentIndex):
+		legalActions = state.getLegalActions(agentIndex)
+		if(depth == -1):
+			if(not legalActions):
+				return mctsEvalFunction(state)
+		else:
+			if(depth == 0 or not legalActions):
+				return scoreEvaluationFunction(state)
+		random_number = random.randint(0, len(legalActions)-1)
+		action = legalActions[random_number]
+		if(agentIndex < state.getNumAgents()-1):
+			self.simulation(state.generateSuccessor(self.index, action), depth, agentIndex+1)
+		else:
+			self.simulation(state.generateSuccessor(self.index, action), depth-1, self.index)
+
 
 def mctsEvalFunction(state):
 	"""
