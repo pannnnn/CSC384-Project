@@ -271,6 +271,7 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 		self.numTraining = numTraining
 
 		"*** YOUR CODE HERE ***"
+		self.pair = dict()
 
 		MultiAgentSearchAgent.__init__(self, evalFn, depth)
 
@@ -289,9 +290,14 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 		games = 0
 		begin = datetime.datetime.utcnow()
 		while datetime.datetime.utcnow() - begin < self.calculation_time:
+			self.run_simulation(gameState)
 			games += 1
-
-		util.raiseNotDefined()
+		legalActions = gameState.getLegalActions(self.index)
+		SuccessorStateVal = []
+		for action in legalActions:
+			successorState = gameState.generateSuccessor(self.index, action)
+			SuccessorStateVal.append(float(self.wins[successorState])/float(self.plays[successorState]))
+		return legalActions[SuccessorStateVal.index(max(SuccessorStateVal))]
 
 	def run_simulation(self, state):
 		"""
@@ -304,40 +310,53 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 		Updates values of appropriate states in search with with evaluation function.
 		"""
 		"*** YOUR CODE HERE ***"
+		self.build_the_tree(state)
 		legalActions = state.getLegalActions(self.index)
 		if(len(self.plays) == 0):
 			self.plays[state] = 0
 			self.wins[state] = 0
-	        states = [state]
-	        for i in range(state.getNumAgents()):
-	            states = [s.generateSuccessor(i, a) for s in states for a in s.getLegalActions(i)]
-	            for s in states:
-	                self.plays[s] = 0
-	                self.wins[s] = 0
+			states = [state.generateSuccessor(self.index, a) for a in state.getLegalActions(self.index)]
+			for s in states:
+				self.plays[s] = 0
+				self.wins[s] = 0
+			self.pair[state] = states
 		else:
-			node_expanded_amt = len(self.plays)
-			# initial state traversal is automatically added
-			nodes_traversed_amt = 1
 			nodes_traversed = [state]
 			cur_state = state
-			states = []
-			while(nodes_traversed_amt < node_expanded_amt):
-				nodes_in_cur_depth = 0
+			agentIndex = self.index
+			while(1):
+				if(cur_state not in self.pair):
+					if(self.plays[cur_state] == 0):
+						# roll out
+						score = self.simulation(cur_state, self.depth, agentIndex)
+						for s in nodes_traversed:
+							self.plays[s] += 1
+							self.wins[s] += score
+					else:
+						self.pair[cur_state] = [cur_state.generateSuccessor(agentIndex, a) for a in cur_state.getLegalActions(agentIndex)]
+						# expand the node
+						for s in self.pair[cur_state]:
+							self.plays[s] = 0
+							self.wins[s] = 0
+						cur_state = self.pair[cur_state][0]
+						nodes_traversed.append(cur_state)
+						# roll out
+						agentIndex += 1
+						if(agentIndex == state.getNumAgents()):
+							agentIndex = self.index
+						score = self.simulation(cur_state, self.depth, agentIndex)
+						for s in nodes_traversed:
+							self.plays[s] += 1
+							self.wins[s] += score
+					break
 				ucb1Dict = {}
-				for i in range(state.getNumAgents()):
-					states = [cur_state.generateSuccessor(i, a) for a in cur_state.getLegalActions(i)]
-					for s in states:
-						ucb1Dict[s] = self.UCB1(cur_state, s)
-					cur_state = max(ucb1Dict.iterkeys(), key=(lambda key: ucb1Dict[key]))
-					nodes_traversed.append(cur_state)
-					nodes_in_cur_depth += len(states)
-					ucb1Dict = {}
-				nodes_traversed_amt += nodes_in_cur_depth
-			score = self.simulation(cur_state, self.depth, self.index)
-			for s in nodes_traversed:
-				self.plays[s] += 1
-				self.wins[s] += score
-				
+				for s in self.pair[cur_state]:
+					ucb1Dict[s] = self.UCB1(cur_state, s)
+				cur_state = max(ucb1Dict.iterkeys(), key=(lambda key: ucb1Dict[key]))
+				nodes_traversed.append(cur_state)
+				agentIndex += 1
+				if(agentIndex == state.getNumAgents()):
+					agentIndex = self.index
 
 	def final(self, state):
 		"""
@@ -346,6 +365,11 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 		"""
 		"*** YOUR CODE HERE ***"
 		util.raiseNotDefined()
+
+	def build_the_tree(self, state):
+		legalActions = state.getLegalActions(self.index)
+		self.pair[state] = []
+		if(state)
 
 	def UCB1(self, parentState, state):
 		try:
@@ -366,10 +390,13 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 		random_number = random.randint(0, len(legalActions)-1)
 		action = legalActions[random_number]
 		if(agentIndex < state.getNumAgents()-1):
-			self.simulation(state.generateSuccessor(self.index, action), depth, agentIndex+1)
+			score = self.simulation(state.generateSuccessor(agentIndex, action), depth, agentIndex+1)
 		else:
-			self.simulation(state.generateSuccessor(self.index, action), depth-1, self.index)
-
+			if(depth == -1):
+				score = self.simulation(state.generateSuccessor(agentIndex, action), depth, self.index)
+			else:
+				score = self.simulation(state.generateSuccessor(agentIndex, action), depth-1, self.index)
+		return score
 
 def mctsEvalFunction(state):
 	"""
