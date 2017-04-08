@@ -309,7 +309,6 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 		Updates values of appropriate states in search with with evaluation function.
 		"""
 		"*** YOUR CODE HERE ***"
-		legalActions = state.getLegalActions(self.index)
 		if(len(self.plays) == 0):
 			self.plays[state] = 0
 			self.wins[state] = 0
@@ -318,7 +317,6 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 				self.plays[s] = 0
 				self.wins[s] = 0
 		else:
-			node_expanded_amt = len(self.plays)
 			# initial state traversal is automatically added
 			nodes_traversed = [state]
 			cur_state = state
@@ -333,9 +331,11 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 						self.plays[s] += 1
 						self.wins[s] += score
 					break
-				# states = [s.generateSuccessor(agentIndex, a) for s in states for a in s.getLegalActions(agentIndex)]
 				cur_states = [cur_state.generateSuccessor(agentIndex, a) for a in cur_state.getLegalActions(agentIndex)]
-				if(cur_states[0] not in self.plays):
+				# if no available actions can be taken
+				if(not cur_states):
+					break
+				if(cur_states[0] not in self.plays.keys()):
 					# expansion
 					for s in cur_states:
 						self.plays[s] = 0
@@ -349,14 +349,15 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 						self.wins[s] += score
 					break
 				else:
+					# UCB search for node
 					ucb1Dict = {}
 					for s in cur_states:
 						ucb1Dict[s] = self.UCB1(cur_state, s)
 					cur_state = max(ucb1Dict.iterkeys(), key=(lambda key: ucb1Dict[key]))
 					nodes_traversed.append(cur_state)
-					agentIndex += 1
-					if(agentIndex == state.getNumAgents()):
-						agentIndex = self.index
+				agentIndex += 1
+				if(agentIndex == state.getNumAgents()):
+					agentIndex = self.index
 
 	def final(self, state):
 		"""
