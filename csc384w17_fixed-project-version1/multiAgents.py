@@ -249,14 +249,17 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 		# This is where you set C, the depth, and the evaluation function for the section "Enhancements for MCTS agent".
 		if Q:
 			if Q == 'minimaxClassic':
-				pass
+				self.C = 1
 			elif Q == 'testClassic':
+				self.C = 1
 				pass
 			elif Q == 'smallClassic':
+				depth = 3
 				pass
 			else: # Q == 'contestClassic'
 				assert( Q == 'contestClassic' )
-				pass
+				depth = 3
+			evalFn = 'betterEvaluationFunction'
 		# Otherwise, your agent will default to these values.
 		else:
 			self.C = int(C)
@@ -295,7 +298,10 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 		SuccessorStateVal = []
 		for action in legalActions:
 			successorState = gameState.generateSuccessor(self.index, action)
-			SuccessorStateVal.append(float(self.wins[successorState])/float(self.plays[successorState]))
+			try:
+				SuccessorStateVal.append(float(self.wins[successorState])/float(self.plays[successorState]))
+			except:
+				SuccessorStateVal.append(float("inf"))
 		return legalActions[SuccessorStateVal.index(max(SuccessorStateVal))]
 
 	def run_simulation(self, state):
@@ -309,22 +315,22 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 		Updates values of appropriate states in search with with evaluation function.
 		"""
 		"*** YOUR CODE HERE ***"
-		if(len(self.plays) == 0):
-			self.plays[state] = 0
-			self.wins[state] = 0
-			states = [state.generateSuccessor(self.index, a) for a in state.getLegalActions(self.index)]
-			for s in states:
-				self.plays[s] = 0
-				self.wins[s] = 0
+		if(len(self.plays) == 0 or state not in self.plays.keys()):
+			# directly roll out
+			self.plays[state] = 1
+			self.wins[state] = self.simulation(state, self.depth, self.index)
+			# states = [state.generateSuccessor(self.index, a) for a in state.getLegalActions(self.index)]
+			# for s in states:
+			# 	self.plays[s] = 0
+			# 	self.wins[s] = 0
 		else:
 			# initial state traversal is automatically added
 			nodes_traversed = [state]
 			cur_state = state
 			cur_states = []
-			# states = [state]
 			agentIndex = self.index
 			while(1):
-				if(self.plays[cur_state] == 0 and state != cur_state):
+				if(self.plays[cur_state] == 0):
 					# roll out
 					score = self.simulation(cur_state, self.depth, agentIndex)
 					for s in nodes_traversed:
@@ -335,13 +341,21 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 				# if no available actions can be taken
 				if(not cur_states):
 					break
+				# any missed extended nodes should be extended manually
+				if any(s in cur_states for s in self.plays.keys()):
+					for s in cur_states:
+						if(s not in self.plays.keys()):
+							self.plays[s] = 0
+							self.wins[s] = 0
+				# if not any(s in cur_states for s in self.plays.keys()):
 				if(cur_states[0] not in self.plays.keys()):
 					# expansion
 					for s in cur_states:
 						self.plays[s] = 0
 						self.wins[s] = 0
 					cur_state = cur_states[0]
-					nodes_traversed.append(cur_state)
+				 	if agentIndex == self.index:
+						nodes_traversed.append(cur_state)
 					# roll out
 					score = self.simulation(cur_state, self.depth, agentIndex)
 					for s in nodes_traversed:
@@ -354,7 +368,8 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 					for s in cur_states:
 						ucb1Dict[s] = self.UCB1(cur_state, s)
 					cur_state = max(ucb1Dict.iterkeys(), key=(lambda key: ucb1Dict[key]))
-					nodes_traversed.append(cur_state)
+					if agentIndex == self.index:
+						nodes_traversed.append(cur_state)
 				agentIndex += 1
 				if(agentIndex == state.getNumAgents()):
 					agentIndex = self.index
@@ -365,13 +380,13 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 		Updates search tree values of states that were visited during an actual game of pacman.
 		"""
 		"*** YOUR CODE HERE ***"
-		util.raiseNotDefined()
+		pass
 
 	def UCB1(self, parentState, state):
 		try:
 			v = float(self.wins[state])/float(self.plays[state])
-			ucb1Val = v + (math.log(float(self.plays[parentState])/float(self.plays[state])))**(.5)
-		except ZeroDivisionError:
+			ucb1Val = v + self.C * (math.log(float(self.plays[parentState])/float(self.plays[state])))**(.5)
+		except:
 			ucb1Val = float("inf")
 		return ucb1Val
 
@@ -382,7 +397,7 @@ class MonteCarloAgent(MultiAgentSearchAgent):
 				return mctsEvalFunction(state)
 		else:
 			if(depth == 0 or not legalActions):
-				return scoreEvaluationFunction(state)
+				return self.evaluationFunction(state)
 		random_number = random.randint(0, len(legalActions)-1)
 		action = legalActions[random_number]
 		if(agentIndex < state.getNumAgents()-1):
@@ -400,16 +415,16 @@ def mctsEvalFunction(state):
 	"""
 	return 1 if state.isWin() else 0
 
-def scoreEvaluationFunction(currentGameState):
-   """
+def scoreEvaluationFunction(state):
+	"""
 	 This default evaluation function just returns the score of the state.
 	 The score is the same one displayed in the Pacman GUI.
 
 	 This evaluation function is meant for use with adversarial search agents
-   """
-   return currentGameState.getScore()
+	"""
+	return state.getScore()
 
-def betterEvaluationFunction(currentGameState):
+def betterEvaluationFunction(state):
 	"""
 	  Your extreme ghost-hunting, pellet-nabbing, food-gobbling, unstoppable
 	  evaluation function (question 5).
@@ -417,7 +432,31 @@ def betterEvaluationFunction(currentGameState):
 	  DESCRIPTION: <write something here so we know what you did>
 	"""
 	"*** YOUR CODE HERE ***"
-	util.raiseNotDefined()
+	# Pacman position
+	pacman_pos = state.getPacmanPosition()
+
+	# total distance between Pacman and all the ghosts
+	ghost_pos_list = state.getGhostPositions()
+	pacman_to_ghost = [manhattanDistance(pacman_pos, ghost_pos) for ghost_pos in ghost_pos_list]
+	pacman_to_ghost = sum(pacman_to_ghost)
+	# total food that is around Pacman
+	pacman_to_food = 0
+	surrounding = [[i,j] for i in range(-2,3) for j in range(-2,3)]
+	food_pos_list = state.getFood()
+	for food in surrounding:
+		x = pacman_pos[0] + food[0]
+		y = pacman_pos[1] + food[1]
+		try:
+			if(food_pos_list[x][y]):
+				pacman_to_food += 1
+		except:
+			pass
+	num_ghost = state.getNumAgents() - 1
+	if(pacman_to_ghost <= num_ghost):
+		score = -50
+	else:
+		score = 10 * pacman_to_ghost + 50 * pacman_to_food	
+	return score
 
 # Abbreviation
 better = betterEvaluationFunction
